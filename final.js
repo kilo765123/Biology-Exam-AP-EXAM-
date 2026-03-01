@@ -1622,6 +1622,8 @@ var _is_last_crit = Module['_is_last_crit'] = makeInvalidEarlyAccess('_is_last_c
 var _get_final_score = Module['_get_final_score'] = makeInvalidEarlyAccess('_get_final_score');
 var _get_p_lvl = Module['_get_p_lvl'] = makeInvalidEarlyAccess('_get_p_lvl');
 var _get_p_atk = Module['_get_p_atk'] = makeInvalidEarlyAccess('_get_p_atk');
+var _get_correct_count = Module['_get_correct_count'] = makeInvalidEarlyAccess('_get_correct_count');
+var _get_incorrect_count = Module['_get_incorrect_count'] = makeInvalidEarlyAccess('_get_incorrect_count');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _emscripten_stack_init = makeInvalidEarlyAccess('_emscripten_stack_init');
@@ -1690,6 +1692,10 @@ function assignWasmExports(wasmExports) {
   _get_p_lvl = Module['_get_p_lvl'] = createExportWrapper('get_p_lvl', 0);
   assert(typeof wasmExports['get_p_atk'] != 'undefined', 'missing Wasm export: get_p_atk');
   _get_p_atk = Module['_get_p_atk'] = createExportWrapper('get_p_atk', 0);
+  assert(typeof wasmExports['get_correct_count'] != 'undefined', 'missing Wasm export: get_correct_count');
+  _get_correct_count = Module['_get_correct_count'] = createExportWrapper('get_correct_count', 0);
+  assert(typeof wasmExports['get_incorrect_count'] != 'undefined', 'missing Wasm export: get_incorrect_count');
+  _get_incorrect_count = Module['_get_incorrect_count'] = createExportWrapper('get_incorrect_count', 0);
   assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
   _fflush = createExportWrapper('fflush', 1);
   assert(typeof wasmExports['strerror'] != 'undefined', 'missing Wasm export: strerror');

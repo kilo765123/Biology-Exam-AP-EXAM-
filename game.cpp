@@ -8,7 +8,6 @@
 
 struct Question { std::string q, o[4], a, h; bool m[4]; };
 struct Boss { std::string name; int maxHP; std::vector<Question> pool; };
-// FIX: Mengembalikan location, atkLevel, dan level ke dalam Player
 struct Player { int level=1, currentHP=1000, maxHP=1000, baseAttack=100, atkLevel=1, sp=10, money=500, luckLevel=1, location=0; };
 
 Player p;
@@ -17,6 +16,7 @@ Question curQ;
 int m_currentHP;
 std::string state = "menu"; 
 int last_dmg_to_boss=0, last_dmg_to_player=0, final_score=0, q_answered=0;
+int correct_answers = 0, incorrect_answers = 0; // Variabel baru
 bool last_hit_crit=false;
 std::mt19937 rng;
 
@@ -30,7 +30,7 @@ void load_new_question() {
 void init_data() {
     exam.pool.clear();
     exam.name = "UJIAN FINAL BIOLOGI (200 SOAL)";
-    exam.maxHP = 20000; // 200 soal x 100 dmg
+    exam.maxHP = 20000; 
 
     // BAB 1: PERTUMBUHAN (25 Soal)
     exam.pool.push_back({"Pertumbuhan bersifat tidak dapat balik disebut?", {"Irreversible", "Reversible", "Kualitatif", "Kuantitatif"}, "Irreversible", "Tak kembali", {0,0,0,0}});
@@ -251,12 +251,50 @@ void init_data() {
 
 extern "C" {
     EXPORT void init_game(unsigned int seed) { rng.seed(seed); init_data(); p = Player(); state = "menu"; }
-    EXPORT void start_exam() { state = "explore"; }
+    
+    EXPORT void start_exam() { 
+        state = "explore"; 
+        q_answered = 0;
+        correct_answers = 0; // Reset counter benar
+        incorrect_answers = 0; // Reset counter salah
+    }
+    
     EXPORT void travel_to(int id) { if (state != "explore" && state != "shop") return; p.location = id; if (id == 1) { state = "shop"; } else { state = "combat"; m_currentHP = exam.maxHP; load_new_question(); } }
     EXPORT void exit_shop() { state = "explore"; p.location = 0; }
     EXPORT void buy_item(int id) { if (state != "shop") return; if (id == 0 && p.money >= 50) { p.money -= 50; p.currentHP += 50; if(p.currentHP > p.maxHP) p.currentHP = p.maxHP; } else if (id == 1 && p.money >= 100) { p.money -= 100; p.sp += 1; } else if (id == 2 && p.money >= 200) { p.money -= 200; p.baseAttack += 5; p.atkLevel++; } else if (id == 3 && p.money >= 300) { p.money -= 300; p.luckLevel++; } }
-    EXPORT void use_skill(int id) { last_dmg_to_boss = 0; last_dmg_to_player = 0; last_hit_crit = false; if (state != "combat") return; if (id == 0 && p.sp >= 2) { p.sp -= 2; p.currentHP += (p.maxHP/2); if(p.currentHP > p.maxHP) p.currentHP = p.maxHP; } else if (id == 1 && p.sp >= 3) { p.sp -= 3; int h=0; for(int i=0; i<4; i++) { if(curQ.o[i] != curQ.a && !curQ.m[i]) { curQ.m[i]=true; h++; if(h>=2) break; } } } else if (id == 2 && p.sp >= 4) { p.sp -= 4; int dmg = 100; m_currentHP -= dmg; last_dmg_to_boss = dmg; q_answered++; load_new_question(); if(m_currentHP<=0) m_currentHP=1; } }
-    EXPORT void check_answer(int idx) { last_dmg_to_boss = 0; last_dmg_to_player = 0; last_hit_crit = false; if (state != "combat") return; if (curQ.o[idx] == curQ.a) { int dmg = p.baseAttack; int critChance = 5 + (p.luckLevel * 5); if ((rng() % 100) < critChance) { dmg *= 2; last_hit_crit = true; } m_currentHP -= dmg; p.money += 30; last_dmg_to_boss = dmg; q_answered++; } else { p.currentHP -= 50; last_dmg_to_player = 50; } if (m_currentHP <= 0 || q_answered >= 200) { state = "victory"; final_score = (p.currentHP * 10) + (p.money * 5) + (q_answered * 100); } else if (p.currentHP <= 0) { state = "dead"; } else if (last_dmg_to_boss > 0) { load_new_question(); } }
+    
+    EXPORT void use_skill(int id) { 
+        last_dmg_to_boss = 0; last_dmg_to_player = 0; last_hit_crit = false; 
+        if (state != "combat") return; 
+        if (id == 0 && p.sp >= 2) { p.sp -= 2; p.currentHP += (p.maxHP/2); if(p.currentHP > p.maxHP) p.currentHP = p.maxHP; } 
+        else if (id == 1 && p.sp >= 3) { p.sp -= 3; int h=0; for(int i=0; i<4; i++) { if(curQ.o[i] != curQ.a && !curQ.m[i]) { curQ.m[i]=true; h++; if(h>=2) break; } } } 
+        else if (id == 2 && p.sp >= 4) { p.sp -= 4; int dmg = 100; m_currentHP -= dmg; last_dmg_to_boss = dmg; q_answered++; load_new_question(); if(m_currentHP<=0) m_currentHP=1; } 
+    }
+    
+    EXPORT void check_answer(int idx) { 
+        last_dmg_to_boss = 0; last_dmg_to_player = 0; last_hit_crit = false; 
+        if (state != "combat") return; 
+        
+        if (curQ.o[idx] == curQ.a) { 
+            int dmg = p.baseAttack; 
+            int critChance = 5 + (p.luckLevel * 5); 
+            if ((rng() % 100) < critChance) { dmg *= 2; last_hit_crit = true; } 
+            m_currentHP -= dmg; p.money += 30; last_dmg_to_boss = dmg; q_answered++; 
+            correct_answers++; // Tambah Benar
+        } else { 
+            p.currentHP -= 50; last_dmg_to_player = 50; 
+            incorrect_answers++; // Tambah Salah
+        } 
+        
+        if (m_currentHP <= 0 || q_answered >= 200) { 
+            state = "victory"; final_score = (p.currentHP * 10) + (p.money * 5) + (q_answered * 100); 
+        } else if (p.currentHP <= 0) { 
+            state = "dead"; 
+        } else if (last_dmg_to_boss > 0) { 
+            load_new_question(); 
+        } 
+    }
+    
     EXPORT void roll_gacha() { if(p.sp > 0) { p.sp--; p.atkLevel++; p.baseAttack += 10; p.currentHP = p.maxHP; } }
     
     EXPORT const char* get_state() { return state.c_str(); }
@@ -276,9 +314,11 @@ extern "C" {
     EXPORT int get_last_dmg_player() { return last_dmg_to_player; }
     EXPORT int is_last_crit() { return last_hit_crit ? 1 : 0; }
     EXPORT int get_final_score() { return final_score; }
-
-    // Untuk memastikan tidak ada error saat kompilasi jika compile.bat lama masih menyangkut
     EXPORT int get_p_lvl() { return p.level; }
     EXPORT int get_p_atk() { return p.atkLevel; }
+    
+    // EXPORT FUNGSI BARU UNTUK UI
+    EXPORT int get_correct_count() { return correct_answers; }
+    EXPORT int get_incorrect_count() { return incorrect_answers; }
 }
 
